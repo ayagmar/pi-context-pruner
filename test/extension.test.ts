@@ -92,6 +92,61 @@ void test("tool_result truncates long output in stable ingest-time mode", SERIAL
   assert.ok(ctx.widgets.length > 0);
 });
 
+void test("tool_result still truncates when marker appears in body text", SERIAL, () => {
+  cleanupConfig();
+
+  const harness = createHarness();
+  contextPrunerExtension(harness.pi);
+
+  const toolResultHandler = harness.eventHandlers.get("tool_result")?.[0];
+  assert.ok(toolResultHandler);
+
+  const event = {
+    toolName: "bash",
+    isError: false,
+    content: [
+      {
+        type: "text",
+        text: `prefix\n${TOOL_RESULT_TRUNCATED_MARKER}\n${"x".repeat(15_000)}`,
+      },
+    ],
+  };
+
+  const result = toolResultHandler?.(event, createContext(undefined)) as
+    | { content?: { type?: string; text?: string }[] }
+    | undefined;
+
+  assert.ok(result);
+  const text = result?.content?.[0]?.text ?? "";
+  assert.match(text, new RegExp(TOOL_RESULT_TRUNCATED_MARKER.replace(/[\[\]]/g, "\\$&")));
+});
+
+void test("tool_result does not re-truncate when marker is already in header", SERIAL, () => {
+  cleanupConfig();
+
+  const harness = createHarness();
+  contextPrunerExtension(harness.pi);
+
+  const toolResultHandler = harness.eventHandlers.get("tool_result")?.[0];
+  assert.ok(toolResultHandler);
+
+  const event = {
+    toolName: "bash",
+    isError: false,
+    content: [
+      {
+        type: "text",
+        text: `${TOOL_RESULT_TRUNCATED_MARKER} tool=bash original_chars=20000 max_chars=10000\n\n${"x".repeat(
+          15_000
+        )}`,
+      },
+    ],
+  };
+
+  const result = toolResultHandler?.(event, createContext(undefined));
+  assert.equal(result, undefined);
+});
+
 void test("context pruning is off by default", SERIAL, () => {
   cleanupConfig();
 

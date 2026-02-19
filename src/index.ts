@@ -478,7 +478,7 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
     const extracted = extractTextOnlyContent(event.content);
     if (!extracted) return;
 
-    if (extracted.text.includes(TOOL_RESULT_TRUNCATED_MARKER)) {
+    if (isAlreadyContextPrunerTruncated(extracted.text)) {
       return;
     }
 
@@ -796,6 +796,12 @@ function extractTextOnlyContent(content: unknown): { text: string } | undefined 
   }
 
   return { text: textParts.join("\n") };
+}
+
+function isAlreadyContextPrunerTruncated(text: string): boolean {
+  const firstLineEnd = text.indexOf("\n");
+  const firstLine = firstLineEnd === -1 ? text : text.slice(0, firstLineEnd);
+  return firstLine.startsWith(TOOL_RESULT_TRUNCATED_MARKER);
 }
 
 function truncateMiddleStable(text: string, headChars: number, tailChars: number): string {
