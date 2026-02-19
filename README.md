@@ -1,173 +1,136 @@
-# Pi Extension Template
+# pi-context-pruner
 
-A practical starter for building Pi extensions that are easy to ship, test, and maintain.
+`pi-context-pruner` reduces token/context growth in Pi by shrinking heavy `toolResult` payloads (large `read`/`bash` output), while staying friendly to prompt caching economics.
 
-## What you get
+It does **not** modify session history files. Transformations happen only in model-facing flow (`tool_result` and optional `context` hook).
 
-- Strict TypeScript + ESLint + Prettier
-- Unit tests + smoke test
-- GitHub Actions CI with individual step reporting
-- A minimal default extension in `src/index.ts`
-- Multiple architecture starters in `starters/`
+## Prompt cache economics (important)
 
-## Quick start
+Naive per-turn history rewriting can destroy prompt-prefix cache hit rates.
 
-1. Click **Use this template** on GitHub
-2. Clone your new repo
-3. Install dependencies
+This extension avoids that with a Codex-inspired strategy:
+
+1. **Stable ingest-time truncation (default ON)**
+   - Large tool outputs are canonicalized once when `tool_result` arrives.
+2. **Context pruning optional (default OFF)**
+   - `/context-pruner context-on` enables context-hook pruning.
+3. **Hysteresis thresholds**
+   - Separate activate/deactivate ratios reduce prune/unprune flapping.
+4. **Safety rails**
+   - Keep recent tool results, keep errors, keep `edit`/`write` full.
+
+## Install
+
+### Local path
+
+```bash
+pi install /absolute/path/to/pi-context-pruner
+/reload
+```
+
+### npm (after publish)
+
+```bash
+pi install npm:pi-context-pruner
+/reload
+```
+
+## Commands
+
+```text
+/context-pruner status
+/context-pruner settings
+/context-pruner on
+/context-pruner off
+/context-pruner balanced
+/context-pruner aggressive
+/context-pruner context-on
+/context-pruner context-off
+/context-pruner observe-on
+/context-pruner observe-off
+/context-pruner set activate <0-1>
+/context-pruner set deactivate <0-1>
+/context-pruner set keep-recent <int>
+/context-pruner set keep-recent-heavy <int>
+/context-pruner set heavy-chars <int>
+/context-pruner set max-old-chars <int>
+/context-pruner set tool-max-chars <int>
+/context-pruner reset
+/context-pruner help
+```
+
+## Settings UI
+
+Use `/context-pruner settings` for interactive config (toggle modes, select profile, adjust numeric thresholds) without manually typing keys.
+
+## Persistence scope
+
+Settings are persisted globally across sessions/restarts in:
+
+- `~/.pi/agent/state/pi-context-pruner.json`
+
+For tests/automation you can override path via env var:
+
+- `PI_CONTEXT_PRUNER_CONFIG_PATH`
+
+## Observability
+
+When observability is enabled (default), the extension emits action visibility for:
+
+- tool-result truncation events
+- context pruning activation/deactivation
+- context prune passes (number of messages shrunk)
+- settings/profile changes
+
+In interactive mode this appears via notifications + a widget (`context-pruner recent actions`).
+
+## Defaults
+
+### Stable tool-result truncation (default ON)
+
+- `tool-max-chars`: 10000
+
+### Context pruning (default OFF)
+
+When enabled:
+
+#### balanced
+
+- activate at **80%** context usage
+- deactivate at **70%**
+- keep recent tool results: 10
+- keep recent heavy tool results: 6
+- old heavy prune threshold: 2500 chars
+
+#### aggressive
+
+- activate at **70%**
+- deactivate at **55%**
+- keep recent tool results: 6
+- keep recent heavy tool results: 3
+- old heavy prune threshold: 1500 chars
+
+## Development
 
 ```bash
 pnpm install
-```
-
-This template uses [pnpm](https://pnpm.io/) for faster installs and disk efficiency. npm works too—just replace `pnpm` with `npm` in all commands.
-
-4. Run the setup script to customize names
-
-```bash
-pnpm run setup-template
-```
-
-This updates `src/constants.ts`, `package.json`, and starter files with your extension name.
-
-5. Run checks
-
-```bash
 pnpm run check
 ```
 
-6. Load it in Pi
+## Project structure
+
+- `src/index.ts` – extension wiring, command handling, observability
+- `src/pruner.ts` – pure context-pruning logic
+- `src/persistence.ts` – global settings persistence
+- `src/constants.ts` – default profiles and constants
+- `src/commands.ts` – command parsing/help
+- `test/*.test.ts` – unit tests
+
+## Publish
 
 ```bash
-pi -e ./src/index.ts
+pnpm publish --access public
 ```
-
-For reloadable dev, place it in:
-
-- `~/.pi/agent/extensions/` (global)
-- `.pi/extensions/` (project)
-
-Then use `/reload`.
-
-## Choose your extension pattern
-
-Not all Pi extensions need commands or tools. Pick a starter that matches your use case:
-
-- `starters/event-only.ts` → listeners/interceptors/guards (`tool_call`, `tool_result`, shortcut)
-- `starters/tool-only.ts` → model-callable tools + result interception + custom rendering
-- `starters/command-only.ts` → slash command UX + a small interactive picker + shortcut
-- `starters/hybrid.ts` → command + tool + event hooks + shortcut
-- `starters/ui-only.ts` → status line, widget, custom dashboard via `ctx.ui.custom()`, shortcut
-
-Replace the default `src/index.ts` with your chosen starter:
-
-```bash
-cp starters/event-only.ts src/index.ts
-pnpm run check
-```
-
-**Note:** If you copy a starter into `src/index.ts` **before** running `setup-template`, `src/index.ts` keeps the old `myext` names. Either:
-
-- Run `setup-template` first, then copy the starter
-- Or copy the starter first, then run setup and manually update names in `src/index.ts`
-
-## Install methods (direct + extmgr)
-
-### Direct with Pi
-
-From local path:
-
-```bash
-pi install /absolute/path/to/your-extension-repo
-```
-
-From GitHub (before publishing):
-
-```bash
-pi install git:github.com/yourusername/your-repo
-# or
-pi install https://github.com/yourusername/your-repo
-```
-
-From npm (after publishing):
-
-```bash
-pi install npm:your-package-name
-```
-
-### With `pi-extmgr`
-
-Install extmgr once:
-
-```bash
-pi install npm:pi-extmgr
-```
-
-Then inside Pi:
-
-```bash
-/extensions install /absolute/path/to/your-extension-repo
-/extensions install git:github.com/yourusername/your-repo
-/extensions install npm:your-package-name
-```
-
-You can also open the interactive manager with `/extensions` and install from there.
-
-If Pi is already running, run `/reload` after install.
-
-## Customize
-
-The `setup-template` script updates most files automatically. To customize manually:
-
-Update `src/constants.ts`:
-
-- `EXTENSION_NAME`
-- `EXTENSION_COMMAND`
-- `TOOL_NAME`
-- `STATE_ENTRY_TYPE`
-
-Update `package.json`:
-
-- `name`
-- `description`
-- `pi.image` (for package gallery)
-
-Update `LICENSE`:
-
-- Replace `Your Name` with your actual name or organization
-
-## Scripts
-
-```bash
-pnpm run setup-template
-pnpm run typecheck
-pnpm run test
-pnpm run smoke-test
-pnpm run lint
-pnpm run format:check
-pnpm run check
-```
-
-## Testing notes
-
-- `test/commands.test.ts`, `test/tool.test.ts`, `test/extension.test.ts` cover core template logic
-- `test/starters.test.ts` validates starter behavior patterns (registration + key flow)
-
-## Docs worth reading
-
-- [extensions.md](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md)
-- [development.md](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/development.md)
-- [packages.md](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/packages.md)
-- [examples/extensions](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent/examples/extensions)
-
-## Share your extension
-
-Add the `pi-package` keyword to `package.json` (already included) and publish to npm.
-Your extension will appear in the [Pi package gallery](https://pi.dev/packages)
-and on [npmjs.com](https://www.npmjs.com/search?q=keywords%3Api-package).
-
-Add `pi.video` or `pi.image` in `package.json` for a gallery preview
-(see [packages.md](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/packages.md#gallery-metadata)).
 
 ## License
 
