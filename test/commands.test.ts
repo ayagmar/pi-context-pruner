@@ -32,10 +32,10 @@ void test("parseKeyValue parses key and value", () => {
 
 void test("buildHelpText references extension command", () => {
   const help = buildHelpText();
-  assert.match(help, new RegExp(`/${EXTENSION_COMMAND} status`));
-  assert.match(help, new RegExp(`/${EXTENSION_COMMAND} settings`));
-  assert.match(help, new RegExp(`/${EXTENSION_COMMAND} set activate`));
-  assert.match(help, new RegExp(`/${EXTENSION_COMMAND} help`));
+  assert.ok(help.includes(`/${EXTENSION_COMMAND} status`));
+  assert.ok(help.includes(`/${EXTENSION_COMMAND} settings`));
+  assert.ok(help.includes(`/${EXTENSION_COMMAND} set activate`));
+  assert.ok(help.includes(`/${EXTENSION_COMMAND} help`));
 });
 
 void test("buildStatusText renders enabled/profile", () => {

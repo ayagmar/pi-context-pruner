@@ -226,6 +226,35 @@ void test("set tool-max-chars updates truncation limit", SERIAL, async () => {
   assert.equal(result, undefined);
 });
 
+void test("truncated tool_result respects configured tool-max-chars", SERIAL, async () => {
+  cleanupConfig();
+
+  const harness = createHarness();
+  contextPrunerExtension(harness.pi);
+
+  const command = harness.commands.get(EXTENSION_COMMAND);
+  const toolResultHandler = harness.eventHandlers.get("tool_result")?.[0];
+  assert.ok(command);
+  assert.ok(toolResultHandler);
+
+  const ctx = createContext(undefined);
+  await command?.handler("set tool-max-chars 500", ctx);
+
+  const event = {
+    toolName: "bash",
+    isError: false,
+    content: [{ type: "text", text: "x".repeat(20_000) }],
+  };
+
+  const result = toolResultHandler?.(event, ctx) as
+    | { content?: { type?: string; text?: string }[] }
+    | undefined;
+
+  assert.ok(result);
+  const text = result?.content?.[0]?.text ?? "";
+  assert.ok(text.length <= 500);
+});
+
 void test("set keep-recent stores normalized integer value", SERIAL, async () => {
   cleanupConfig();
 

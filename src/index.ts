@@ -466,13 +466,10 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
     if (!state.enabled) return;
     if (!isToolResultEvent(event)) return;
 
-    if (event.isError) {
-      const profile = effectiveProfile();
-      if (profile.keepErrorsFull) return;
-    }
+    const profile = effectiveProfile();
+    if (event.isError && profile.keepErrorsFull) return;
 
     const toolName = normalizeToolName(event.toolName);
-    const profile = effectiveProfile();
     if (profile.keepToolsFull.includes(toolName)) return;
 
     const extracted = extractTextOnlyContent(event.content);
@@ -486,15 +483,11 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
       return;
     }
 
-    const truncated = truncateMiddleStable(
-      extracted.text,
-      TOOL_RESULT_TRUNCATE_HEAD_CHARS,
-      TOOL_RESULT_TRUNCATE_TAIL_CHARS
-    );
-
     const header =
       `${TOOL_RESULT_TRUNCATED_MARKER} ` +
       `tool=${toolName} original_chars=${extracted.text.length} max_chars=${toolResultMaxChars}`;
+
+    const truncatedText = buildTruncatedToolResultText(extracted.text, header, toolResultMaxChars);
 
     recordAction(
       ctx,
@@ -502,7 +495,7 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
     );
 
     return {
-      content: [{ type: "text", text: `${header}\n\n${truncated}` }],
+      content: [{ type: "text", text: truncatedText }],
     };
   });
 
@@ -619,14 +612,14 @@ function applySetCommand(
 
   switch (key) {
     case "activate":
-      if (num <= 0 || num >= 1) return { ok: false, error: "activate must be between 0 and 1" };
+      if (num <= 0 || num >= 1) return { ok: false, error: "activate must be > 0 and < 1" };
       candidate.activateAtContextRatio = num;
       override.activateAtContextRatio = num;
       message = `${key}=${num.toFixed(2)}`;
       break;
 
     case "deactivate":
-      if (num < 0 || num >= 1) return { ok: false, error: "deactivate must be between 0 and 1" };
+      if (num < 0 || num >= 1) return { ok: false, error: "deactivate must be >= 0 and < 1" };
       candidate.deactivateAtContextRatio = num;
       override.deactivateAtContextRatio = num;
       message = `${key}=${num.toFixed(2)}`;
@@ -802,6 +795,44 @@ function isAlreadyContextPrunerTruncated(text: string): boolean {
   const firstLineEnd = text.indexOf("\n");
   const firstLine = firstLineEnd === -1 ? text : text.slice(0, firstLineEnd);
   return firstLine.startsWith(TOOL_RESULT_TRUNCATED_MARKER);
+}
+
+function buildTruncatedToolResultText(text: string, header: string, maxChars: number): string {
+  if (maxChars <= 0) return "";
+
+  const separator = "\n\n";
+  const availableTextBudget = Math.max(0, maxChars - header.length - separator.length);
+
+  if (availableTextBudget <= 0) {
+    return header.slice(0, maxChars);
+  }
+
+  const headChars = Math.max(
+    1,
+    Math.min(TOOL_RESULT_TRUNCATE_HEAD_CHARS, Math.floor(availableTextBudget * 0.7))
+  );
+  const tailChars = Math.max(
+    0,
+    Math.min(TOOL_RESULT_TRUNCATE_TAIL_CHARS, availableTextBudget - headChars)
+  );
+
+  const rawBody = truncateMiddleStable(text, headChars, tailChars);
+  const body = clampTextToMaxChars(rawBody, availableTextBudget);
+
+  return `${header}${separator}${body}`;
+}
+
+function clampTextToMaxChars(text: string, maxChars: number): string {
+  if (maxChars <= 0) return "";
+  if (text.length <= maxChars) return text;
+  if (maxChars <= 3) return text.slice(0, maxChars);
+
+  const marker = "...";
+  const available = maxChars - marker.length;
+  const head = Math.max(1, Math.floor(available * 0.7));
+  const tail = Math.max(0, available - head);
+
+  return `${text.slice(0, head)}${marker}${tail > 0 ? text.slice(text.length - tail) : ""}`;
 }
 
 function truncateMiddleStable(text: string, headChars: number, tailChars: number): string {
