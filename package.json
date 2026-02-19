@@ -1,22 +1,24 @@
 {
-  "name": "my-pi-extension",
+  "name": "pi-context-pruner",
   "version": "0.1.0",
-  "description": "Starter template for building robust Pi extensions",
+  "description": "Pi extension with cache-friendly tool-result truncation and optional context pruning.",
   "keywords": [
     "pi-package",
     "pi-extension",
-    "template"
+    "context",
+    "tokens",
+    "compaction",
+    "tool-results"
   ],
   "type": "module",
   "main": "./src/index.ts",
   "files": [
     "src/",
-    "starters/",
     "scripts/",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "setup-template": "node ./scripts/setup.mjs",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -30,19 +32,13 @@
     "extensions": [
       "./src/index.ts"
     ],
-    "image": "https://placehold.co/1200x630/png?text=My+Pi+Extension"
+    "image": "https://placehold.co/1200x630/png?text=pi-context-pruner"
   },
   "peerDependencies": {
-    "@mariozechner/pi-ai": "*",
-    "@mariozechner/pi-coding-agent": "*",
-    "@mariozechner/pi-tui": "*",
-    "@sinclair/typebox": "*"
+    "@mariozechner/pi-coding-agent": "*"
   },
   "devDependencies": {
-    "@mariozechner/pi-ai": "^0.52.8",
     "@mariozechner/pi-coding-agent": "^0.52.8",
-    "@mariozechner/pi-tui": "^0.52.8",
-    "@sinclair/typebox": "^0.34.48",
     "@types/node": "^22.19.10",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
