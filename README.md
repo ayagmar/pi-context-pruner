@@ -48,6 +48,8 @@ pi install npm:pi-context-pruner
 /context-pruner context-off
 /context-pruner observe-on
 /context-pruner observe-off
+/context-pruner statusbar-on
+/context-pruner statusbar-off
 /context-pruner set activate <0-1>
 /context-pruner set deactivate <0-1>
 /context-pruner set keep-recent <int>
@@ -83,6 +85,8 @@ When observability is enabled (default), the extension emits action visibility f
 - settings/profile changes
 
 In interactive mode this appears via notifications + a widget (`context-pruner recent actions`).
+
+Footer status bar is **opt-in** and disabled by default (`/context-pruner statusbar-on`).
 
 ## Defaults
 

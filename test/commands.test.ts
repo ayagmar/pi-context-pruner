@@ -34,6 +34,8 @@ void test("buildHelpText references extension command", () => {
   const help = buildHelpText();
   assert.ok(help.includes(`/${EXTENSION_COMMAND} status`));
   assert.ok(help.includes(`/${EXTENSION_COMMAND} settings`));
+  assert.ok(help.includes(`/${EXTENSION_COMMAND} statusbar-on`));
+  assert.ok(help.includes(`/${EXTENSION_COMMAND} statusbar-off`));
   assert.ok(help.includes(`/${EXTENSION_COMMAND} set activate`));
   assert.ok(help.includes(`/${EXTENSION_COMMAND} help`));
 });

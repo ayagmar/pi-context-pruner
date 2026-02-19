@@ -8,6 +8,7 @@ export const ACTION_HISTORY_LIMIT = 10;
 
 export const DEFAULT_PROFILE: PrunerProfileName = "balanced";
 export const DEFAULT_OBSERVABILITY_ENABLED = true;
+export const DEFAULT_STATUS_BAR_ENABLED = false;
 
 /**
  * Cache-safe defaults:

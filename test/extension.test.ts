@@ -5,7 +5,12 @@ import { tmpdir } from "node:os";
 import test, { after } from "node:test";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import contextPrunerExtension from "../src/index.js";
-import { EXTENSION_COMMAND, TOOL_RESULT_TRUNCATED_MARKER } from "../src/constants.js";
+import {
+  EXTENSION_COMMAND,
+  EXTENSION_NAME,
+  STATUS_KEY,
+  TOOL_RESULT_TRUNCATED_MARKER,
+} from "../src/constants.js";
 import { CONFIG_PATH_ENV } from "../src/persistence.js";
 
 interface RegisteredCommand {
@@ -26,7 +31,7 @@ interface MockContext {
   usage: { tokens: number; contextWindow: number } | undefined;
   ui: {
     notify: (message: string, level: "info") => void;
-    setStatus: (key: string, value: string) => void;
+    setStatus: (key: string, value: string | undefined) => void;
     setWidget: (
       key: string,
       value: string[] | undefined,
@@ -63,6 +68,40 @@ void test("extension registers command + context + tool_result hooks", SERIAL, (
   assert.ok(harness.commands.has(EXTENSION_COMMAND));
   assert.ok(harness.eventHandlers.has("context"));
   assert.ok(harness.eventHandlers.has("tool_result"));
+});
+
+void test("status bar is opt-in and off by default", SERIAL, () => {
+  cleanupConfig();
+
+  const harness = createHarness();
+  contextPrunerExtension(harness.pi);
+
+  const sessionStartHandler = harness.eventHandlers.get("session_start")?.[0];
+  assert.ok(sessionStartHandler);
+
+  const ctx = createContext(undefined);
+  sessionStartHandler?.({}, ctx);
+
+  assert.ok(ctx.statuses.some((status) => status === `${STATUS_KEY}:undefined`));
+});
+
+void test("statusbar-on and statusbar-off toggle footer status", SERIAL, async () => {
+  cleanupConfig();
+
+  const harness = createHarness();
+  contextPrunerExtension(harness.pi);
+
+  const command = harness.commands.get(EXTENSION_COMMAND);
+  assert.ok(command);
+
+  const ctx = createContext(undefined);
+  await command?.handler("statusbar-on", ctx);
+  await command?.handler("statusbar-off", ctx);
+
+  assert.ok(
+    ctx.statuses.some((status) => status.startsWith(`${STATUS_KEY}:${EXTENSION_NAME}: on/`))
+  );
+  assert.ok(ctx.statuses.some((status) => status === `${STATUS_KEY}:undefined`));
 });
 
 void test("tool_result truncates long output in stable ingest-time mode", SERIAL, () => {
@@ -386,7 +425,7 @@ function createContext(usage: { tokens: number; contextWindow: number } | undefi
       notify: (message: string) => {
         notifications.push(message);
       },
-      setStatus: (key: string, value: string) => {
+      setStatus: (key: string, value: string | undefined) => {
         statuses.push(`${key}:${value}`);
       },
       setWidget: (

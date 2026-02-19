@@ -66,5 +66,6 @@ export interface PersistedSettings {
   contextPruningEnabled: boolean;
   toolResultMaxChars: number;
   observabilityEnabled: boolean;
+  statusBarEnabled: boolean;
   profileOverrides: Partial<Record<PrunerProfileName, ProfileOverride>>;
 }

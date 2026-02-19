@@ -12,6 +12,7 @@ import {
   ACTION_HISTORY_LIMIT,
   DEFAULT_OBSERVABILITY_ENABLED,
   DEFAULT_PROFILE,
+  DEFAULT_STATUS_BAR_ENABLED,
   DEFAULT_TOOL_RESULT_MAX_CHARS,
   EXTENSION_COMMAND,
   EXTENSION_NAME,
@@ -68,6 +69,7 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
   let pruningActive = false;
   let toolResultMaxChars = DEFAULT_TOOL_RESULT_MAX_CHARS;
   let observabilityEnabled = DEFAULT_OBSERVABILITY_ENABLED;
+  let statusBarEnabled = DEFAULT_STATUS_BAR_ENABLED;
 
   const profileOverrides: Partial<Record<PrunerProfileName, ProfileOverride>> = {};
   let actionHistory: string[] = [];
@@ -86,6 +88,7 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
     contextPruningEnabled,
     toolResultMaxChars,
     observabilityEnabled,
+    statusBarEnabled,
     profileOverrides,
   });
 
@@ -95,6 +98,11 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
 
   const renderStatus = (ctx: Pick<ExtensionContext, "hasUI" | "ui">): void => {
     if (!ctx.hasUI) return;
+
+    if (!statusBarEnabled) {
+      ctx.ui.setStatus(STATUS_KEY, undefined);
+      return;
+    }
 
     const profile = effectiveProfile();
     const contextMode = !state.enabled
@@ -160,6 +168,7 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
       `maxOldChars=${profile.maxCharsForOldToolResult}`,
       `toolMaxChars=${toolResultMaxChars}`,
       `observability=${observabilityEnabled ? "on" : "off"}`,
+      `statusBar=${statusBarEnabled ? "on" : "off"}`,
       `overrides=${override ? "yes" : "no"}`,
       `config=${getConfigPath()}`,
     ].join(", ");
@@ -218,6 +227,7 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
         `Context pruning enabled: ${contextPruningEnabled ? "yes" : "no"}`,
         `Profile: ${state.profile}`,
         `Observability: ${observabilityEnabled ? "on" : "off"}`,
+        `Status bar: ${statusBarEnabled ? "on" : "off"}`,
         `Tool result max chars: ${toolResultMaxChars}`,
         `activate: ${profile.activateAtContextRatio.toFixed(2)}`,
         `deactivate: ${profile.deactivateAtContextRatio.toFixed(2)}`,
@@ -290,6 +300,15 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
         continue;
       }
 
+      if (choice.startsWith("Status bar:")) {
+        statusBarEnabled = !statusBarEnabled;
+        persist();
+        renderStatus(ctx);
+        recordAction(ctx, `status bar ${statusBarEnabled ? "enabled" : "disabled"}`);
+        notify(ctx, statusDetails());
+        continue;
+      }
+
       if (choice.startsWith("Tool result max chars:")) {
         await promptSetValue(ctx, "tool-max-chars", toolResultMaxChars);
         continue;
@@ -344,7 +363,7 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
 
   pi.registerCommand(EXTENSION_COMMAND, {
     description:
-      "Control cache-safe truncation/context pruning: status | on | off | context-on | context-off | settings | set ...",
+      "Control cache-safe truncation/context pruning: status | on | off | context-on | context-off | statusbar-on | statusbar-off | settings | set ...",
     getArgumentCompletions: (prefix) => {
       const safePrefix = prefix.toLowerCase();
       if (safePrefix.startsWith("set ")) {
@@ -425,6 +444,22 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
           persist();
           renderStatus(ctx);
           renderWidget(ctx);
+          notify(ctx, statusDetails());
+          return;
+
+        case "statusbar-on":
+          statusBarEnabled = true;
+          persist();
+          renderStatus(ctx);
+          recordAction(ctx, "status bar enabled");
+          notify(ctx, statusDetails());
+          return;
+
+        case "statusbar-off":
+          statusBarEnabled = false;
+          persist();
+          renderStatus(ctx);
+          recordAction(ctx, "status bar disabled");
           notify(ctx, statusDetails());
           return;
 
@@ -568,6 +603,10 @@ export default function contextPrunerExtension(pi: ExtensionAPI) {
 
     if (typeof raw.observabilityEnabled === "boolean") {
       observabilityEnabled = raw.observabilityEnabled;
+    }
+
+    if (typeof raw.statusBarEnabled === "boolean") {
+      statusBarEnabled = raw.statusBarEnabled;
     }
 
     if (raw.profileOverrides && typeof raw.profileOverrides === "object") {

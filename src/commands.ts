@@ -11,6 +11,8 @@ export type PrunerCommandName =
   | "context-off"
   | "observe-on"
   | "observe-off"
+  | "statusbar-on"
+  | "statusbar-off"
   | "settings"
   | "set"
   | "reset"
@@ -41,6 +43,8 @@ export const COMMAND_OPTIONS: readonly PrunerCommandName[] = [
   "context-off",
   "observe-on",
   "observe-off",
+  "statusbar-on",
+  "statusbar-off",
   "settings",
   "set",
   "reset",
@@ -93,6 +97,8 @@ export function buildHelpText(): string {
     `/${EXTENSION_COMMAND} context-off`,
     `/${EXTENSION_COMMAND} observe-on`,
     `/${EXTENSION_COMMAND} observe-off`,
+    `/${EXTENSION_COMMAND} statusbar-on`,
+    `/${EXTENSION_COMMAND} statusbar-off`,
     `/${EXTENSION_COMMAND} settings`,
     `/${EXTENSION_COMMAND} set activate <0-1>`,
     `/${EXTENSION_COMMAND} set deactivate <0-1>`,
